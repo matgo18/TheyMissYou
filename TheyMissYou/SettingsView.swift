@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @AppStorage("notificationFrequency") private var notificationFrequency = NotificationFrequency.immediate.rawValue
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
     
@@ -36,15 +37,28 @@ struct SettingsView: View {
                 .background(isDarkMode ? darkModeColor : Color.white)
                 
                 List {
-                    Toggle(isOn: $isDarkMode) {
-                        HStack {
-                            Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
-                                .foregroundColor(.green)
-                            Text("Dark Mode")
-                                .foregroundColor(isDarkMode ? .white : .primary)
+                    Section(header: Text("Appearance")) {
+                        Toggle(isOn: $isDarkMode) {
+                            HStack {
+                                Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
+                                    .foregroundColor(.green)
+                                Text("Dark Mode")
+                                    .foregroundColor(isDarkMode ? .white : .primary)
+                            }
                         }
+                        .tint(.green)
                     }
-                    .tint(.green)
+                    .listRowBackground(isDarkMode ? darkModeColor : Color.white)
+                    
+                    Section(header: Text("Notifications")) {
+                        Picker("Reminder Frequency", selection: $notificationFrequency) {
+                            ForEach(NotificationFrequency.allCases, id: \.self) { frequency in
+                                Text(frequency.description)
+                                    .tag(frequency.rawValue)
+                            }
+                        }
+                        .tint(.green)
+                    }
                     .listRowBackground(isDarkMode ? darkModeColor : Color.white)
                 }
                 .listStyle(InsetGroupedListStyle())

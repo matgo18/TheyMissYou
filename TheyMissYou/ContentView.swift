@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 struct SlideFromRight: GeometryEffect {
     var offset: CGFloat
@@ -28,8 +29,24 @@ struct ContentView: View {
     @State private var showingProfileView = false
     @State private var backgroundOpacity: Double = 0
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @AppStorage("notificationFrequency") private var notificationFrequency = NotificationFrequency.immediate.rawValue
+    @Environment(\.scenePhase) private var scenePhase
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
+    
+    // Initialize notifications when the view appears
+    func initializeNotifications() {
+        NotificationManager.shared.requestPermission()
+    }
+    
+    // Function to send a reminder notification
+    func sendReminderNotification() {
+        NotificationManager.shared.scheduleNotification(
+            title: "We Miss You!",
+            body: "Come back and check what's new in the app!",
+            timeInterval: notificationFrequency
+        )
+    }
     
     var body: some View {
         NavigationView {
@@ -68,7 +85,7 @@ struct ContentView: View {
                     .padding()
                     .background(isDarkMode ? darkModeColor : Color.white)
                     
-                    // Scrollable content
+                    // Main content
                     ScrollView {
                         VStack(spacing: 20) {
                             ForEach(0..<5) { _ in
@@ -185,6 +202,14 @@ struct ContentView: View {
                 ProfileView()
             }
             .preferredColorScheme(isDarkMode ? .dark : .light)
+        }
+        .onAppear {
+            initializeNotifications()
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .background {
+                sendReminderNotification()
+            }
         }
     }
 }
