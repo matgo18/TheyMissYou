@@ -24,9 +24,10 @@ struct SlideFromRight: GeometryEffect {
 
 struct ContentView: View {
     @State private var isMenuSheetPresented = false
-    @State private var showingMessageView = false
+    @State private var showingAuthView = false
     @State private var showingSettingsView = false
     @State private var showingProfileView = false
+    @State private var showingPostPhotoView = false
     @State private var backgroundOpacity: Double = 0
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("notificationFrequency") private var notificationFrequency = NotificationFrequency.immediate.rawValue
@@ -37,6 +38,15 @@ struct ContentView: View {
     // Initialize notifications when the view appears
     func initializeNotifications() {
         NotificationManager.shared.requestPermission()
+        
+        // Listen for notification taps
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ShowPostPhotoView"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            showingPostPhotoView = true
+        }
     }
     
     // Function to send a reminder notification
@@ -75,9 +85,9 @@ struct ContentView: View {
                         Spacer()
 
                         Button(action: {
-                            showingMessageView = true
+                            showingAuthView = true
                         }) {
-                            Image(systemName: "message")
+                            Image(systemName: "person.badge.key.fill")
                                 .foregroundColor(.green)
                                 .font(.title2)
                         }
@@ -141,12 +151,26 @@ struct ContentView: View {
                             Button(action: {
                                 withAnimation(.spring()) {
                                     isMenuSheetPresented = false
-                                    showingMessageView = true
+                                    showingAuthView = true
                                 }
                             }) {
                                 HStack {
-                                    Image(systemName: "message")
-                                    Text("Messages")
+                                    Image(systemName: "person.badge.key.fill")
+                                    Text("Login / Register")
+                                }
+                                .foregroundColor(.green)
+                                .font(.title3)
+                            }
+                            
+                            Button(action: {
+                                withAnimation(.spring()) {
+                                    isMenuSheetPresented = false
+                                    showingPostPhotoView = true
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "photo.on.rectangle.angled")
+                                    Text("New Post")
                                 }
                                 .foregroundColor(.green)
                                 .font(.title3)
@@ -192,14 +216,17 @@ struct ContentView: View {
                 }
             }
             .navigationBarHidden(true)
-            .fullScreenCover(isPresented: $showingMessageView) {
-                MessageView()
+            .fullScreenCover(isPresented: $showingAuthView) {
+                AuthView()
             }
             .fullScreenCover(isPresented: $showingSettingsView) {
                 SettingsView()
             }
             .fullScreenCover(isPresented: $showingProfileView) {
                 ProfileView()
+            }
+            .fullScreenCover(isPresented: $showingPostPhotoView) {
+                PostPhotoView()
             }
             .preferredColorScheme(isDarkMode ? .dark : .light)
         }

@@ -19,8 +19,51 @@ enum NotificationFrequency: Double, CaseIterable {
     }
 }
 
-class NotificationManager {
+class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
+    
+    override init() {
+        super.init()
+        UNUserNotificationCenter.current().delegate = self
+        setupNotificationCategories()
+    }
+    
+    private func setupNotificationCategories() {
+        // Create the custom actions
+        let openAction = UNNotificationAction(
+            identifier: "OPEN_ACTION",
+            title: "Open",
+            options: .foreground
+        )
+        
+        // Create the category
+        let category = UNNotificationCategory(
+            identifier: "POST_PHOTO",
+            actions: [openAction],
+            intentIdentifiers: [],
+            options: .customDismissAction
+        )
+        
+        // Register the category
+        UNUserNotificationCenter.current().setNotificationCategories([category])
+    }
+    
+    private func prepareNotificationIcon() -> UNNotificationAttachment? {
+        guard let iconImage = UIImage(named: "logo"),
+              let data = iconImage.pngData() else { return nil }
+        
+        let tempDir = FileManager.default.temporaryDirectory
+        let identifier = UUID().uuidString
+        let fileURL = tempDir.appendingPathComponent("\(identifier).png")
+        
+        do {
+            try data.write(to: fileURL)
+            return try UNNotificationAttachment(identifier: identifier, url: fileURL)
+        } catch {
+            print("Error preparing notification icon: \(error.localizedDescription)")
+            return nil
+        }
+    }
     
     func requestPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
@@ -37,6 +80,13 @@ class NotificationManager {
         content.title = title
         content.body = body
         content.sound = .default
+        content.userInfo = ["destination": "postPhoto"]
+        content.categoryIdentifier = "POST_PHOTO"
+        
+        // Add the notification icon
+        if let attachment = prepareNotificationIcon() {
+            content.attachments = [attachment]
+        }
         
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: false)
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
@@ -46,5 +96,21 @@ class NotificationManager {
                 print("Error scheduling notification: \(error.localizedDescription)")
             }
         }
+    }
+    
+    // Handle notification taps
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+        
+        if userInfo["destination"] as? String == "postPhoto" {
+            NotificationCenter.default.post(name: NSNotification.Name("ShowPostPhotoView"), object: nil)
+        }
+        
+        completionHandler()
+    }
+    
+    // Handle notifications when app is in foreground
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
     }
 } 
