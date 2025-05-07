@@ -3,10 +3,13 @@ import PhotosUI
 
 struct PostPhotoView: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var postManager = PostManager.shared
     @State private var selectedImage: UIImage?
     @State private var isImagePickerPresented = false
     @State private var caption = ""
-    @State private var showingSuccessAlert = false
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    @State private var isLoading = false
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
     @AppStorage("isDarkMode") private var isDarkMode = false
@@ -34,15 +37,21 @@ struct PostPhotoView: View {
                     Spacer()
                     
                     Button(action: {
-                        // Save post action
-                        showingSuccessAlert = true
+                        Task {
+                            await handleShare()
+                        }
                     }) {
-                        Text("Share")
-                            .foregroundColor(.green)
-                            .font(.title3)
-                            .bold()
+                        if isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .green))
+                        } else {
+                            Text("Share")
+                                .foregroundColor(.green)
+                                .font(.title3)
+                                .bold()
+                        }
                     }
-                    .disabled(selectedImage == nil)
+                    .disabled(selectedImage == nil || isLoading)
                 }
                 .padding()
                 .background(isDarkMode ? darkModeColor : Color.white)
@@ -84,6 +93,7 @@ struct PostPhotoView: View {
                             .background(isDarkMode ? darkModeColor.opacity(0.5) : Color.gray.opacity(0.1))
                             .cornerRadius(8)
                             .foregroundColor(isDarkMode ? .white : .primary)
+                            .disabled(isLoading)
                     }
                     .padding()
                 }
@@ -92,14 +102,29 @@ struct PostPhotoView: View {
             .sheet(isPresented: $isImagePickerPresented) {
                 ImagePicker(image: $selectedImage)
             }
-            .alert("Post Shared!", isPresented: $showingSuccessAlert) {
-                Button("OK") {
-                    dismiss()
-                }
-            } message: {
-                Text("Your photo has been shared successfully.")
+            .alert(isPresented: $showingAlert) {
+                Alert(
+                    title: Text("Message"),
+                    message: Text(alertMessage),
+                    dismissButton: .default(Text("OK"))
+                )
             }
             .navigationBarHidden(true)
+        }
+    }
+    
+    private func handleShare() async {
+        guard let image = selectedImage else { return }
+        
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            try await postManager.createPost(image: image, caption: caption)
+            dismiss()
+        } catch {
+            alertMessage = error.localizedDescription
+            showingAlert = true
         }
     }
 }

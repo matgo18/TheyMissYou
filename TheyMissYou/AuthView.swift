@@ -3,6 +3,7 @@ import SwiftUI
 struct AuthView: View {
     @Environment(\.presentationMode) var presentationMode
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @StateObject private var userManager = UserManager.shared
     @State private var isLogin = true
     @State private var email = ""
     @State private var password = ""
@@ -10,6 +11,7 @@ struct AuthView: View {
     @State private var username = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
+    @State private var isLoading = false
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
     
@@ -61,36 +63,48 @@ struct AuthView: View {
                                 TextField("Username", text: $username)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .autocapitalization(.none)
+                                    .disabled(isLoading)
                             }
                             
                             TextField("Email", text: $email)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                 .keyboardType(.emailAddress)
                                 .autocapitalization(.none)
+                                .disabled(isLoading)
                             
                             SecureField("Password", text: $password)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .disabled(isLoading)
                             
                             if !isLogin {
                                 SecureField("Confirm Password", text: $confirmPassword)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .disabled(isLoading)
                             }
                         }
                         .padding(.horizontal)
                         
                         // Action Button
                         Button(action: {
-                            handleAuth()
+                            Task {
+                                await handleAuth()
+                            }
                         }) {
-                            Text(isLogin ? "Login" : "Register")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.green)
-                                .cornerRadius(10)
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Text(isLogin ? "Login" : "Register")
+                                    .font(.headline)
+                            }
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
                         .padding(.horizontal)
+                        .disabled(isLoading)
                         
                         // Toggle between Login and Register
                         Button(action: {
@@ -105,6 +119,7 @@ struct AuthView: View {
                                 .foregroundColor(.green)
                         }
                         .padding(.top)
+                        .disabled(isLoading)
                     }
                 }
             }
@@ -121,41 +136,34 @@ struct AuthView: View {
         }
     }
     
-    private func handleAuth() {
-        if !isLogin {
-            // Registration validation
-            guard !username.isEmpty else {
-                alertMessage = "Please enter a username"
-                showingAlert = true
-                return
+    private func handleAuth() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            if isLogin {
+                try await userManager.login(email: email, password: password)
+                presentationMode.wrappedValue.dismiss()
+            } else {
+                // Registration validation
+                guard !username.isEmpty else {
+                    alertMessage = "Please enter a username"
+                    showingAlert = true
+                    return
+                }
+                
+                guard password == confirmPassword else {
+                    alertMessage = "Passwords do not match"
+                    showingAlert = true
+                    return
+                }
+                
+                try await userManager.register(email: email, password: password, username: username)
+                presentationMode.wrappedValue.dismiss()
             }
-            
-            guard password == confirmPassword else {
-                alertMessage = "Passwords do not match"
-                showingAlert = true
-                return
-            }
-        }
-        
-        guard !email.isEmpty else {
-            alertMessage = "Please enter an email"
+        } catch {
+            alertMessage = error.localizedDescription
             showingAlert = true
-            return
-        }
-        
-        guard !password.isEmpty else {
-            alertMessage = "Please enter a password"
-            showingAlert = true
-            return
-        }
-        
-        // TODO: Implement actual authentication
-        alertMessage = isLogin ? "Login successful!" : "Registration successful!"
-        showingAlert = true
-        
-        // Dismiss the view after successful auth
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            presentationMode.wrappedValue.dismiss()
         }
     }
 }

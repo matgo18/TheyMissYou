@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UserNotifications
+import FirebaseFirestore
 
 struct SlideFromRight: GeometryEffect {
     var offset: CGFloat
@@ -23,6 +24,8 @@ struct SlideFromRight: GeometryEffect {
 }
 
 struct ContentView: View {
+    @StateObject private var postManager = PostManager.shared
+    @StateObject private var userManager = UserManager.shared
     @State private var isMenuSheetPresented = false
     @State private var showingAuthView = false
     @State private var showingSettingsView = false
@@ -96,20 +99,62 @@ struct ContentView: View {
                     .background(isDarkMode ? darkModeColor : Color.white)
                     
                     // Main content
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            ForEach(0..<5) { _ in
-                                VStack(alignment: .leading) {
-                                    Rectangle()
-                                        .fill(Color.green.opacity(0.3))
-                                        .frame(height: 150)
-                                        .cornerRadius(12)
-
-                                    Text("Some description here...")
-                                        .padding(.top, 5)
-                                        .foregroundColor(.gray)
+                    ZStack {
+                        if postManager.isLoading {
+                            ProgressView()
+                                .scaleEffect(1.5)
+                                .padding()
+                        } else if let error = postManager.error {
+                            VStack(spacing: 16) {
+                                Text("Error loading posts")
+                                    .font(.title3)
+                                    .foregroundColor(.red)
+                                Text(error)
+                                    .foregroundColor(.gray)
+                                Button(action: {
+                                    Task {
+                                        await postManager.fetchPosts()
+                                    }
+                                }) {
+                                    Text("Try Again")
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 10)
+                                        .background(Color.green)
+                                        .cornerRadius(8)
                                 }
-                                .padding(.horizontal)
+                            }
+                            .padding()
+                        } else if postManager.posts.isEmpty {
+                            VStack(spacing: 16) {
+                                Text("No posts yet")
+                                    .font(.title3)
+                                if UserManager.shared.isAuthenticated {
+                                    Button(action: {
+                                        showingPostPhotoView = true
+                                    }) {
+                                        Text("Create your first post")
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 20)
+                                            .padding(.vertical, 10)
+                                            .background(Color.green)
+                                            .cornerRadius(8)
+                                    }
+                                }
+                            }
+                            .padding()
+                        } else {
+                            ScrollView {
+                                LazyVStack(spacing: 16) {
+                                    ForEach(postManager.posts) { post in
+                                        PostView(post: post)
+                                            .padding(.horizontal)
+                                    }
+                                }
+                                .padding(.vertical)
+                            }
+                            .refreshable {
+                                await postManager.fetchPosts()
                             }
                         }
                     }

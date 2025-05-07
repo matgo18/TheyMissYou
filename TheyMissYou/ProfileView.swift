@@ -3,6 +3,11 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(\.presentationMode) var presentationMode
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @StateObject private var userManager = UserManager.shared
+    @State private var showingSignOutAlert = false
+    @State private var showingAuthView = false
+    @State private var errorMessage = ""
+    @State private var showError = false
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
     
@@ -28,115 +33,152 @@ struct ProfileView: View {
                     
                     Spacer()
                     
-                    Button(action: {
-                        // Edit profile action
-                    }) {
-                        Image(systemName: "pencil")
-                            .foregroundColor(.green)
-                            .font(.title2)
+                    if userManager.isAuthenticated {
+                        Button(action: {
+                            showingSignOutAlert = true
+                        }) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .foregroundColor(.red)
+                                .font(.title2)
+                        }
                     }
                 }
                 .padding()
                 .background(isDarkMode ? darkModeColor : Color.white)
                 
-                ScrollView {
-                    VStack(spacing: 25) {
-                        // Profile Picture
-                        Circle()
-                            .fill(Color.green.opacity(0.3))
-                            .frame(width: 120, height: 120)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.green)
-                                    .font(.system(size: 50))
-                            )
-                            .padding(.top, 20)
+                if userManager.isAuthenticated {
+                    authenticatedContent
+                } else {
+                    unauthenticatedContent
+                }
+            }
+            .navigationBarHidden(true)
+            .background(isDarkMode ? darkModeColor : Color.white)
+            .alert("Error", isPresented: $showError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
+            }
+            .alert("Sign Out", isPresented: $showingSignOutAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Sign Out", role: .destructive) {
+                    signOut()
+                }
+            } message: {
+                Text("Are you sure you want to sign out?")
+            }
+            .fullScreenCover(isPresented: $showingAuthView) {
+                AuthView()
+            }
+        }
+    }
+    
+    private var authenticatedContent: some View {
+        ScrollView {
+            VStack(spacing: 25) {
+                // Profile Picture
+                Circle()
+                    .fill(Color.green.opacity(0.3))
+                    .frame(width: 120, height: 120)
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 50))
+                    )
+                    .padding(.top, 20)
+                
+                // User Info
+                VStack(spacing: 15) {
+                    if let userData = userManager.userData {
+                        Text(userData.username)
+                            .font(.title)
+                            .bold()
+                            .foregroundColor(isDarkMode ? .white : .primary)
                         
-                        // User Info
-                        VStack(spacing: 15) {
-                            Text("John Doe")
-                                .font(.title)
-                                .bold()
-                                .foregroundColor(isDarkMode ? .white : .primary)
-                            
-                            Text("@johndoe")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                            
-                            Text("Living life one day at a time")
+                        Text(userData.email)
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        
+                        if let bio = userData.bio {
+                            Text(bio)
                                 .font(.body)
                                 .foregroundColor(isDarkMode ? .white : .primary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
                         }
                         
-                        // Stats
-                        HStack(spacing: 40) {
-                            VStack {
-                                Text("256")
-                                    .font(.title3)
-                                    .bold()
-                                    .foregroundColor(.green)
-                                Text("Following")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                            }
-                            
-                            VStack {
-                                Text("1.2K")
-                                    .font(.title3)
-                                    .bold()
-                                    .foregroundColor(.green)
-                                Text("Followers")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                            }
-                            
-                            VStack {
-                                Text("48")
-                                    .font(.title3)
-                                    .bold()
-                                    .foregroundColor(.green)
-                                Text("Posts")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                        .padding(.vertical)
-                        
-                        // Action Buttons
-                        VStack(spacing: 12) {
-                            Button(action: {
-                                // Edit Profile action
-                            }) {
-                                Text("Edit Profile")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.green)
-                                    .cornerRadius(10)
-                            }
-                            
-                            Button(action: {
-                                // Share Profile action
-                            }) {
-                                Text("Share Profile")
-                                    .font(.headline)
-                                    .foregroundColor(.green)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.green.opacity(0.2))
-                                    .cornerRadius(10)
-                            }
-                        }
-                        .padding(.horizontal)
+                        Text("Member since: \(userData.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                            .font(.caption)
+                            .foregroundColor(.gray)
                     }
                 }
+                .padding(.horizontal)
+                
+                // Stats
+                HStack(spacing: 40) {
+                    VStack {
+                        Text("Posts")
+                            .font(.headline)
+                            .foregroundColor(isDarkMode ? .white : .primary)
+                        Text("0")
+                            .font(.title)
+                            .foregroundColor(.green)
+                    }
+                    
+                    VStack {
+                        Text("Likes")
+                            .font(.headline)
+                            .foregroundColor(isDarkMode ? .white : .primary)
+                        Text("0")
+                            .font(.title)
+                            .foregroundColor(.green)
+                    }
+                }
+                .padding(.vertical)
             }
-            .navigationBarHidden(true)
-            .background(isDarkMode ? darkModeColor : Color.white)
-            .preferredColorScheme(isDarkMode ? .dark : .light)
+        }
+    }
+    
+    private var unauthenticatedContent: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            
+            Image(systemName: "person.crop.circle.badge.exclamationmark")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+            
+            Text("Not Signed In")
+                .font(.title2)
+                .foregroundColor(.gray)
+            
+            Text("Sign in to view your profile")
+                .font(.body)
+                .foregroundColor(.gray)
+            
+            Button(action: {
+                showingAuthView = true
+            }) {
+                Text("Sign In")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.green)
+                    .cornerRadius(10)
+            }
+            .padding(.horizontal)
+            
+            Spacer()
+        }
+    }
+    
+    private func signOut() {
+        do {
+            try userManager.signOut()
+            presentationMode.wrappedValue.dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
         }
     }
 }
