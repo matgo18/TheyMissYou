@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 struct AuthView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -9,9 +10,11 @@ struct AuthView: View {
     @State private var password = ""
     @State private var confirmPassword = ""
     @State private var username = ""
+    @State private var coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var isLoading = false
+    @State private var showingMapPicker = false
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
     
@@ -64,20 +67,52 @@ struct AuthView: View {
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .autocapitalization(.none)
                                     .disabled(isLoading)
-                            }
-                            
-                            TextField("Email", text: $email)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .keyboardType(.emailAddress)
-                                .autocapitalization(.none)
-                                .disabled(isLoading)
-                            
-                            SecureField("Password", text: $password)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .disabled(isLoading)
-                            
-                            if !isLogin {
+                                
+                                TextField("Email", text: $email)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .keyboardType(.emailAddress)
+                                    .autocapitalization(.none)
+                                    .disabled(isLoading)
+                                
+                                SecureField("Password", text: $password)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .disabled(isLoading)
+                                
                                 SecureField("Confirm Password", text: $confirmPassword)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .disabled(isLoading)
+                                
+                                Button(action: {
+                                    showingMapPicker = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "mappin.and.ellipse")
+                                            .foregroundColor(.green)
+                                        Text(coordinate.latitude == 0 && coordinate.longitude == 0 ? "Select Your Location" : "Location Selected")
+                                            .foregroundColor(coordinate.latitude == 0 && coordinate.longitude == 0 ? .gray : .green)
+                                        Spacer()
+                                        if coordinate.latitude != 0 || coordinate.longitude != 0 {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundColor(.green)
+                                        }
+                                    }
+                                    .padding()
+                                    .background(Color(.systemBackground))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color(.systemGray4), lineWidth: 1)
+                                    )
+                                }
+                                .disabled(isLoading)
+                            } else {
+                                TextField("Email", text: $email)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .keyboardType(.emailAddress)
+                                    .autocapitalization(.none)
+                                    .disabled(isLoading)
+                                
+                                SecureField("Password", text: $password)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .disabled(isLoading)
                             }
@@ -114,6 +149,7 @@ struct AuthView: View {
                             password = ""
                             confirmPassword = ""
                             username = ""
+                            coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
                         }) {
                             Text(isLogin ? "Don't have an account? Register" : "Already have an account? Login")
                                 .foregroundColor(.green)
@@ -132,6 +168,9 @@ struct AuthView: View {
                     message: Text(alertMessage),
                     dismissButton: .default(Text("OK"))
                 )
+            }
+            .fullScreenCover(isPresented: $showingMapPicker) {
+                MapPickerView(coordinate: $coordinate)
             }
         }
     }
@@ -152,13 +191,25 @@ struct AuthView: View {
                     return
                 }
                 
+                guard coordinate.latitude != 0 || coordinate.longitude != 0 else {
+                    alertMessage = "Please select your location on the map"
+                    showingAlert = true
+                    return
+                }
+                
                 guard password == confirmPassword else {
                     alertMessage = "Passwords do not match"
                     showingAlert = true
                     return
                 }
                 
-                try await userManager.register(email: email, password: password, username: username)
+                try await userManager.register(
+                    email: email,
+                    password: password,
+                    username: username,
+                    latitude: coordinate.latitude,
+                    longitude: coordinate.longitude
+                )
                 presentationMode.wrappedValue.dismiss()
             }
         } catch {

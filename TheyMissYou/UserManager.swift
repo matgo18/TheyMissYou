@@ -43,7 +43,7 @@ class UserManager: ObservableObject {
         }
     }
     
-    func register(email: String, password: String, username: String) async throws {
+    func register(email: String, password: String, username: String, latitude: Double? = nil, longitude: Double? = nil) async throws {
         print("Attempting registration with email: \(email), username: \(username)")
         do {
             // Check if username is already taken
@@ -65,7 +65,9 @@ class UserManager: ObservableObject {
                 id: result.user.uid,
                 email: email,
                 username: username,
-                createdAt: Date()
+                createdAt: Date(),
+                latitude: latitude,
+                longitude: longitude
             )
             
             let userDict = userData.toDictionary()
@@ -126,6 +128,35 @@ class UserManager: ObservableObject {
             return nil
         }
     }
+    
+    func updateLocation(latitude: Double, longitude: Double) async throws {
+        guard let userId = currentUser?.uid else {
+            throw AuthError.notAuthenticated
+        }
+        
+        print("Updating location for user: \(userId)")
+        let data = [
+            "latitude": latitude,
+            "longitude": longitude
+        ]
+        
+        do {
+            try await db.collection("users").document(userId).updateData(data)
+            print("Location updated successfully")
+            
+            // Update local user data
+            if var updatedUserData = self.userData {
+                updatedUserData.latitude = latitude
+                updatedUserData.longitude = longitude
+                DispatchQueue.main.async {
+                    self.userData = updatedUserData
+                }
+            }
+        } catch {
+            print("Error updating location: \(error.localizedDescription)")
+            throw error
+        }
+    }
 }
 
 // User data model
@@ -136,6 +167,8 @@ struct UserData: Codable {
     let createdAt: Date
     var profileImageUrl: String?
     var bio: String?
+    var latitude: Double?
+    var longitude: Double?
     
     func toDictionary() -> [String: Any] {
         return [
@@ -144,17 +177,21 @@ struct UserData: Codable {
             "username": username,
             "createdAt": createdAt,
             "profileImageUrl": profileImageUrl as Any,
-            "bio": bio as Any
+            "bio": bio as Any,
+            "latitude": latitude as Any,
+            "longitude": longitude as Any
         ]
     }
     
-    init(id: String, email: String, username: String, createdAt: Date, profileImageUrl: String? = nil, bio: String? = nil) {
+    init(id: String, email: String, username: String, createdAt: Date, profileImageUrl: String? = nil, bio: String? = nil, latitude: Double? = nil, longitude: Double? = nil) {
         self.id = id
         self.email = email
         self.username = username
         self.createdAt = createdAt
         self.profileImageUrl = profileImageUrl
         self.bio = bio
+        self.latitude = latitude
+        self.longitude = longitude
     }
     
     init?(dictionary: [String: Any]) {
@@ -172,6 +209,8 @@ struct UserData: Codable {
         self.createdAt = createdAt.dateValue()
         self.profileImageUrl = dictionary["profileImageUrl"] as? String
         self.bio = dictionary["bio"] as? String
+        self.latitude = dictionary["latitude"] as? Double
+        self.longitude = dictionary["longitude"] as? Double
     }
 }
 
@@ -180,6 +219,7 @@ enum AuthError: LocalizedError {
     case loginFailed(String)
     case registrationFailed(String)
     case signOutFailed(String)
+    case notAuthenticated
     
     var errorDescription: String? {
         switch self {
@@ -187,6 +227,8 @@ enum AuthError: LocalizedError {
              .registrationFailed(let message),
              .signOutFailed(let message):
             return message
+        case .notAuthenticated:
+            return "User is not authenticated"
         }
     }
 } 

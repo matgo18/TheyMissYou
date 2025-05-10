@@ -31,6 +31,7 @@ struct ContentView: View {
     @State private var showingSettingsView = false
     @State private var showingProfileView = false
     @State private var showingPostPhotoView = false
+    @State private var showingLocationsView = false
     @State private var backgroundOpacity: Double = 0
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("notificationFrequency") private var notificationFrequency = NotificationFrequency.immediate.rawValue
@@ -224,6 +225,20 @@ struct ContentView: View {
                             Button(action: {
                                 withAnimation(.spring()) {
                                     isMenuSheetPresented = false
+                                    showingLocationsView = true
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "mappin.and.ellipse")
+                                    Text("User Locations")
+                                }
+                                .foregroundColor(.green)
+                                .font(.title3)
+                            }
+                            
+                            Button(action: {
+                                withAnimation(.spring()) {
+                                    isMenuSheetPresented = false
                                     showingSettingsView = true
                                 }
                             }) {
@@ -272,6 +287,9 @@ struct ContentView: View {
             }
             .fullScreenCover(isPresented: $showingPostPhotoView) {
                 PostPhotoView()
+            }
+            .fullScreenCover(isPresented: $showingLocationsView) {
+                LocationsView()
             }
             .preferredColorScheme(isDarkMode ? .dark : .light)
         }

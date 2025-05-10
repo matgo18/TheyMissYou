@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 struct ProfileView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -6,8 +7,11 @@ struct ProfileView: View {
     @StateObject private var userManager = UserManager.shared
     @State private var showingSignOutAlert = false
     @State private var showingAuthView = false
+    @State private var showingMapPicker = false
     @State private var errorMessage = ""
     @State private var showError = false
+    @State private var coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
+    @State private var isUpdatingLocation = false
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
     
@@ -70,6 +74,16 @@ struct ProfileView: View {
             .fullScreenCover(isPresented: $showingAuthView) {
                 AuthView()
             }
+            .fullScreenCover(isPresented: $showingMapPicker) {
+                MapPickerView(coordinate: $coordinate)
+                    .onDisappear {
+                        if coordinate.latitude != 0 || coordinate.longitude != 0 {
+                            Task {
+                                await updateLocation()
+                            }
+                        }
+                    }
+            }
         }
     }
     
@@ -110,6 +124,31 @@ struct ProfileView: View {
                         Text("Member since: \(userData.createdAt.formatted(date: .abbreviated, time: .omitted))")
                             .font(.caption)
                             .foregroundColor(.gray)
+                            
+                        // Location Update Button
+                        Button(action: {
+                            if let userData = userManager.userData {
+                                coordinate = CLLocationCoordinate2D(
+                                    latitude: userData.latitude ?? 0,
+                                    longitude: userData.longitude ?? 0
+                                )
+                            }
+                            showingMapPicker = true
+                        }) {
+                            HStack {
+                                Image(systemName: "mappin.and.ellipse")
+                                Text("Update Location")
+                            }
+                            .foregroundColor(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.green)
+                            .cornerRadius(10)
+                            .opacity(isUpdatingLocation ? 0.5 : 1.0)
+                        }
+                        .disabled(isUpdatingLocation)
+                        .padding(.horizontal)
+                        .padding(.top, 10)
                     }
                 }
                 .padding(.horizontal)
@@ -176,6 +215,23 @@ struct ProfileView: View {
         do {
             try userManager.signOut()
             presentationMode.wrappedValue.dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+    
+    private func updateLocation() async {
+        guard coordinate.latitude != 0 || coordinate.longitude != 0 else { return }
+        
+        isUpdatingLocation = true
+        defer { isUpdatingLocation = false }
+        
+        do {
+            try await userManager.updateLocation(
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude
+            )
         } catch {
             errorMessage = error.localizedDescription
             showError = true
