@@ -3,7 +3,6 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
     @AppStorage("isDarkMode") private var isDarkMode = false
-    @AppStorage("notificationFrequency") private var notificationFrequency = NotificationFrequency.immediate.rawValue
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
     
@@ -44,17 +43,6 @@ struct SettingsView: View {
                                     .foregroundColor(.green)
                                 Text("Dark Mode")
                                     .foregroundColor(isDarkMode ? .white : .primary)
-                            }
-                        }
-                        .tint(.green)
-                    }
-                    .listRowBackground(isDarkMode ? darkModeColor : Color.white)
-                    
-                    Section(header: Text("Notifications")) {
-                        Picker("Reminder Frequency", selection: $notificationFrequency) {
-                            ForEach(NotificationFrequency.allCases, id: \.self) { frequency in
-                                Text(frequency.description)
-                                    .tag(frequency.rawValue)
                             }
                         }
                         .tint(.green)
