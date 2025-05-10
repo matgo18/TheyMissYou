@@ -85,30 +85,32 @@ struct PostView: View {
                 .foregroundColor(.gray)
             
             if isCurrentUserPost {
-                Menu {
+                Menu(content: {
                     Button(role: .destructive, action: {
                         showingDeleteAlert = true
                     }) {
                         Label("Delete", systemImage: "trash")
                     }
-                } label: {
+                }, label: {
                     Image(systemName: "ellipsis")
                         .foregroundColor(.gray)
                         .padding(8)
-                }
+                })
             }
         }
     }
     
     private var postImage: some View {
-        Group {
-            if let image = imageManager.loadImage(filename: post.imageFilename) {
+        if let image = imageManager.loadImage(filename: post.imageFilename) {
+            AnyView(
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
                     .frame(maxHeight: 300)
                     .cornerRadius(8)
-            } else {
+            )
+        } else {
+            AnyView(
                 Rectangle()
                     .fill(Color.gray.opacity(0.2))
                     .aspectRatio(16/9, contentMode: .fit)
@@ -119,7 +121,7 @@ struct PostView: View {
                             .foregroundColor(.gray)
                             .font(.largeTitle)
                     )
-            }
+            )
         }
     }
     

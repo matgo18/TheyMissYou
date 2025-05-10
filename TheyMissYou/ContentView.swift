@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var showingProfileView = false
     @State private var showingPostPhotoView = false
     @State private var showingLocationsView = false
+    @State private var showingGroupsView = false
     @State private var backgroundOpacity: Double = 0
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("notificationFrequency") private var notificationFrequency = NotificationFrequency.immediate.rawValue
@@ -65,7 +66,7 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                VStack {
+                VStack(spacing: 0) {
                     // Top Navigation Bar
                     HStack {
                         Button(action: {
@@ -100,41 +101,28 @@ struct ContentView: View {
                     .background(isDarkMode ? darkModeColor : Color.white)
                     
                     // Main content
-                    ZStack {
+                    ZStack(alignment: .top) {
                         if postManager.isLoading {
-                            ProgressView()
-                                .scaleEffect(1.5)
-                                .padding()
-                        } else if let error = postManager.error {
-                            VStack(spacing: 16) {
-                                Text("Error loading posts")
-                                    .font(.title3)
-                                    .foregroundColor(.red)
-                                Text(error)
-                                    .foregroundColor(.gray)
-                                Button(action: {
-                                    Task {
-                                        await postManager.fetchPosts()
-                                    }
-                                }) {
-                                    Text("Try Again")
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 20)
-                                        .padding(.vertical, 10)
-                                        .background(Color.green)
-                                        .cornerRadius(8)
-                                }
+                            VStack {
+                                ProgressView()
+                                    .scaleEffect(1.5)
+                                    .padding(.top, 20)
+                                Spacer()
                             }
-                            .padding()
-                        } else if postManager.posts.isEmpty {
-                            VStack(spacing: 16) {
-                                Text("No posts yet")
-                                    .font(.title3)
-                                if UserManager.shared.isAuthenticated {
+                        } else if let error = postManager.error {
+                            VStack {
+                                VStack(spacing: 16) {
+                                    Text("Error loading posts")
+                                        .font(.title3)
+                                        .foregroundColor(.red)
+                                    Text(error)
+                                        .foregroundColor(.gray)
                                     Button(action: {
-                                        showingPostPhotoView = true
+                                        Task {
+                                            await postManager.fetchPosts()
+                                        }
                                     }) {
-                                        Text("Create your first post")
+                                        Text("Try Again")
                                             .foregroundColor(.white)
                                             .padding(.horizontal, 20)
                                             .padding(.vertical, 10)
@@ -142,8 +130,30 @@ struct ContentView: View {
                                             .cornerRadius(8)
                                     }
                                 }
+                                .padding(.top, 20)
+                                Spacer()
                             }
-                            .padding()
+                        } else if postManager.posts.isEmpty {
+                            VStack {
+                                VStack(spacing: 16) {
+                                    Text("No posts yet")
+                                        .font(.title3)
+                                    if UserManager.shared.isAuthenticated {
+                                        Button(action: {
+                                            showingPostPhotoView = true
+                                        }) {
+                                            Text("Create your first post")
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 20)
+                                                .padding(.vertical, 10)
+                                                .background(Color.green)
+                                                .cornerRadius(8)
+                                        }
+                                    }
+                                }
+                                .padding(.top, 20)
+                                Spacer()
+                            }
                         } else {
                             ScrollView {
                                 LazyVStack(spacing: 16) {
@@ -166,89 +176,106 @@ struct ContentView: View {
                 // Side Menu
                 GeometryReader { geometry in
                     HStack {
-                        VStack(spacing: 20) {
-                            HStack {
-                                Button(action: {
-                                    withAnimation(.spring()) {
-                                        isMenuSheetPresented = false
-                                        showingProfileView = true
-                                    }
-                                }) {
-                                    Circle()
-                                        .fill(Color.green.opacity(0.3))
-                                        .frame(width: 60, height: 60)
-                                        .overlay(
-                                            Image(systemName: "person.fill")
-                                                .foregroundColor(.green)
-                                                .font(.title2)
-                                        )
+                        VStack(alignment: .leading, spacing: 24) {
+                            // Profile Button
+                            Button(action: {
+                                withAnimation(.spring()) {
+                                    isMenuSheetPresented = false
+                                    showingProfileView = true
                                 }
-                                
-                                Spacer()
+                            }) {
+                                Circle()
+                                    .fill(Color.green.opacity(0.3))
+                                    .frame(width: 60, height: 60)
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(.green)
+                                            .font(.title2)
+                                    )
                             }
+                            .padding(.top, 60)
                             .padding(.horizontal)
-                            .padding(.top, 50)
                             
+                            // Menu Title
                             Text("Menu")
                                 .font(.title2)
                                 .bold()
                                 .foregroundColor(.green)
+                                .padding(.horizontal)
                             
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    isMenuSheetPresented = false
-                                    showingAuthView = true
+                            // Menu Items
+                            VStack(alignment: .leading, spacing: 20) {
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        isMenuSheetPresented = false
+                                        showingAuthView = true
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: "person.badge.key.fill")
+                                        Text("Login / Register")
+                                    }
+                                    .foregroundColor(.green)
+                                    .font(.title3)
                                 }
-                            }) {
-                                HStack {
-                                    Image(systemName: "person.badge.key.fill")
-                                    Text("Login / Register")
+                                
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        isMenuSheetPresented = false
+                                        showingPostPhotoView = true
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: "photo.on.rectangle.angled")
+                                        Text("New Post")
+                                    }
+                                    .foregroundColor(.green)
+                                    .font(.title3)
                                 }
-                                .foregroundColor(.green)
-                                .font(.title3)
+                                
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        isMenuSheetPresented = false
+                                        showingLocationsView = true
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: "mappin.and.ellipse")
+                                        Text("User Locations")
+                                    }
+                                    .foregroundColor(.green)
+                                    .font(.title3)
+                                }
+                                
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        isMenuSheetPresented = false
+                                        showingGroupsView = true
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: "person.2.fill")
+                                        Text("Groups")
+                                    }
+                                    .foregroundColor(.green)
+                                    .font(.title3)
+                                }
+                                
+                                Button(action: {
+                                    withAnimation(.spring()) {
+                                        isMenuSheetPresented = false
+                                        showingSettingsView = true
+                                    }
+                                }) {
+                                    HStack {
+                                        Image(systemName: "gear")
+                                        Text("Settings")
+                                    }
+                                    .foregroundColor(.green)
+                                    .font(.title3)
+                                }
                             }
-                            
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    isMenuSheetPresented = false
-                                    showingPostPhotoView = true
-                                }
-                            }) {
-                                HStack {
-                                    Image(systemName: "photo.on.rectangle.angled")
-                                    Text("New Post")
-                                }
-                                .foregroundColor(.green)
-                                .font(.title3)
-                            }
-                            
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    isMenuSheetPresented = false
-                                    showingLocationsView = true
-                                }
-                            }) {
-                                HStack {
-                                    Image(systemName: "mappin.and.ellipse")
-                                    Text("User Locations")
-                                }
-                                .foregroundColor(.green)
-                                .font(.title3)
-                            }
-                            
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    isMenuSheetPresented = false
-                                    showingSettingsView = true
-                                }
-                            }) {
-                                HStack {
-                                    Image(systemName: "gear")
-                                    Text("Settings")
-                                }
-                                .foregroundColor(.green)
-                                .font(.title3)
-                            }
+                            .padding(.horizontal)
                             
                             Spacer()
                         }
@@ -290,6 +317,9 @@ struct ContentView: View {
             }
             .fullScreenCover(isPresented: $showingLocationsView) {
                 LocationsView()
+            }
+            .fullScreenCover(isPresented: $showingGroupsView) {
+                GroupsView()
             }
             .preferredColorScheme(isDarkMode ? .dark : .light)
         }

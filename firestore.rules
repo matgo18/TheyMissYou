@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // User rules
+    match /users/{userId} {
+      allow read: if true;  // Anyone can read user profiles for displaying usernames, etc.
+      allow write: if isOwner(userId);  // Only the user can modify their own profile
+    }
+    
+    // Group rules
+    match /groups/{groupId} {
+      // Anyone can read group data (for discovery and display)
+      allow read: if true;
+      
+      // Any authenticated user can create groups
+      allow create: if isSignedIn();
+      
+      // Group updates are allowed if:
+      // 1. User is authenticated AND
+      // 2. Either:
+      //    - No members are being removed (prevent unauthorized removals)
+      //    - Only the requesting user is being added (for joining)
+      allow update: if isSignedIn() &&
+        (
+          // Ensure no members are being removed
+          resource.data.memberIds.hasAll(request.resource.data.memberIds) ||
+          (
+            // Allow adding only the requesting user
+            request.resource.data.memberIds.hasAll(resource.data.memberIds) &&
+            request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1 &&
+            request.resource.data.memberIds.hasAll([request.auth.uid])
+          )
+        );
+      
+      // Only the group creator can delete the group
+      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+    }
+    
+    // Post rules
+    match /posts/{postId} {
+      // Anyone can read posts
+      allow read: if true;
+      
+      // Authenticated users can create posts
+      allow create: if isSignedIn();
+      
+      // Post updates are allowed if:
+      // 1. User is authenticated AND
+      // 2. Either:
+      //    - User is the post owner (can update any field)
+      //    - User is only updating the likes field (for liking posts)
+      allow update: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        (
+          // Only the likes field is being modified
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) &&
+          // The likes field must be a number
+          request.resource.data.likes is number &&
+          // All other fields must remain unchanged
+          request.resource.data.userId == resource.data.userId &&
+          request.resource.data.imageFilename == resource.data.imageFilename &&
+          request.resource.data.caption == resource.data.caption &&
+          request.resource.data.createdAt == resource.data.createdAt
+        )
+      );
+      
+      // Only the post owner can delete their posts
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+} 

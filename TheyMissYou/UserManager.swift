@@ -2,6 +2,10 @@ import SwiftUI
 import FirebaseAuth
 import FirebaseFirestore
 
+extension Notification.Name {
+    static let authStateDidChange = Notification.Name("authStateDidChange")
+}
+
 class UserManager: ObservableObject {
     static let shared = UserManager()
     
@@ -27,6 +31,8 @@ class UserManager: ObservableObject {
                 } else {
                     self?.userData = nil
                 }
+                // Post notification for auth state change
+                NotificationCenter.default.post(name: .authStateDidChange, object: nil)
             }
         }
     }
@@ -85,18 +91,53 @@ class UserManager: ObservableObject {
         }
     }
     
-    func signOut() throws {
-        print("Attempting sign out")
+    func deleteAccount() async throws {
+        guard let user = currentUser else {
+            throw NSError(domain: "UserManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "No user logged in"])
+        }
+        
+        // Delete user data from Firestore
+        try await db.collection("users").document(user.uid).delete()
+        
+        // Delete user's posts
+        let postsSnapshot = try await db.collection("posts")
+            .whereField("userId", isEqualTo: user.uid)
+            .getDocuments()
+        
+        for document in postsSnapshot.documents {
+            try await document.reference.delete()
+        }
+        
+        // Remove user from all groups
+        let groupsSnapshot = try await db.collection("groups")
+            .whereField("memberIds", arrayContains: user.uid)
+            .getDocuments()
+        
+        for document in groupsSnapshot.documents {
+            try await document.reference.updateData([
+                "memberIds": FieldValue.arrayRemove([user.uid])
+            ])
+        }
+        
+        // Delete the user's auth account
+        try await user.delete()
+        
+        // Clear local user data
+        DispatchQueue.main.async {
+            self.currentUser = nil
+            self.userData = nil
+        }
+    }
+    
+    func signOut() {
         do {
             try auth.signOut()
             DispatchQueue.main.async {
+                self.currentUser = nil
                 self.userData = nil
-                self.isAuthenticated = false
             }
-            print("Sign out successful")
         } catch {
-            print("Sign out failed: \(error.localizedDescription)")
-            throw AuthError.signOutFailed(error.localizedDescription)
+            print("Error signing out: \(error.localizedDescription)")
         }
     }
     
@@ -157,6 +198,30 @@ class UserManager: ObservableObject {
             throw error
         }
     }
+    
+    func addPostToUser(userId: String, postId: String) async throws {
+        let userRef = db.collection("users").document(userId)
+        try await userRef.updateData([
+            "postIds": FieldValue.arrayUnion([postId])
+        ])
+        
+        // Update local user data if it's the current user
+        if userId == currentUser?.uid {
+            await fetchUserData(userId: userId)
+        }
+    }
+    
+    func removePostFromUser(userId: String, postId: String) async throws {
+        let userRef = db.collection("users").document(userId)
+        try await userRef.updateData([
+            "postIds": FieldValue.arrayRemove([postId])
+        ])
+        
+        // Update local user data if it's the current user
+        if userId == currentUser?.uid {
+            await fetchUserData(userId: userId)
+        }
+    }
 }
 
 // User data model
@@ -169,6 +234,7 @@ struct UserData: Codable {
     var bio: String?
     var latitude: Double?
     var longitude: Double?
+    var postIds: [String]  // Array to store post IDs
     
     func toDictionary() -> [String: Any] {
         return [
@@ -179,11 +245,12 @@ struct UserData: Codable {
             "profileImageUrl": profileImageUrl as Any,
             "bio": bio as Any,
             "latitude": latitude as Any,
-            "longitude": longitude as Any
+            "longitude": longitude as Any,
+            "postIds": postIds
         ]
     }
     
-    init(id: String, email: String, username: String, createdAt: Date, profileImageUrl: String? = nil, bio: String? = nil, latitude: Double? = nil, longitude: Double? = nil) {
+    init(id: String, email: String, username: String, createdAt: Date, profileImageUrl: String? = nil, bio: String? = nil, latitude: Double? = nil, longitude: Double? = nil, postIds: [String] = []) {
         self.id = id
         self.email = email
         self.username = username
@@ -192,6 +259,7 @@ struct UserData: Codable {
         self.bio = bio
         self.latitude = latitude
         self.longitude = longitude
+        self.postIds = postIds
     }
     
     init?(dictionary: [String: Any]) {
@@ -211,6 +279,7 @@ struct UserData: Codable {
         self.bio = dictionary["bio"] as? String
         self.latitude = dictionary["latitude"] as? Double
         self.longitude = dictionary["longitude"] as? Double
+        self.postIds = (dictionary["postIds"] as? [String]) ?? []
     }
 }
 

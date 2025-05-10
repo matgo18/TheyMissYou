@@ -12,6 +12,8 @@ struct ProfileView: View {
     @State private var showError = false
     @State private var coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
     @State private var isUpdatingLocation = false
+    @State private var showDeleteConfirmation = false
+    @State private var isDeleting = false
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
     
@@ -55,6 +57,26 @@ struct ProfileView: View {
                 } else {
                     unauthenticatedContent
                 }
+                
+                Spacer()
+                
+                // Delete Account Button
+                Button(action: {
+                    showDeleteConfirmation = true
+                }) {
+                    HStack {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                        Text("Delete Account")
+                            .foregroundColor(.red)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(10)
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
             }
             .navigationBarHidden(true)
             .background(isDarkMode ? darkModeColor : Color.white)
@@ -71,6 +93,16 @@ struct ProfileView: View {
             } message: {
                 Text("Are you sure you want to sign out?")
             }
+            .alert("Delete Account", isPresented: $showDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    Task {
+                        await deleteAccount()
+                    }
+                }
+            } message: {
+                Text("Are you sure you want to delete your account? This action cannot be undone.")
+            }
             .fullScreenCover(isPresented: $showingAuthView) {
                 AuthView()
             }
@@ -83,6 +115,16 @@ struct ProfileView: View {
                             }
                         }
                     }
+            }
+            .overlay {
+                if isDeleting {
+                    Color.black.opacity(0.5)
+                    ProgressView("Deleting account...")
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(10)
+                }
             }
         }
     }
@@ -127,53 +169,23 @@ struct ProfileView: View {
                             
                         // Location Update Button
                         Button(action: {
-                            if let userData = userManager.userData {
-                                coordinate = CLLocationCoordinate2D(
-                                    latitude: userData.latitude ?? 0,
-                                    longitude: userData.longitude ?? 0
-                                )
-                            }
                             showingMapPicker = true
                         }) {
                             HStack {
-                                Image(systemName: "mappin.and.ellipse")
-                                Text("Update Location")
+                                Image(systemName: "location.fill")
+                                    .foregroundColor(.green)
+                                Text(isUpdatingLocation ? "Updating..." : "Update Location")
+                                    .foregroundColor(.green)
                             }
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.green)
-                            .cornerRadius(10)
-                            .opacity(isUpdatingLocation ? 0.5 : 1.0)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(Color.green.opacity(0.2))
+                            .cornerRadius(8)
                         }
                         .disabled(isUpdatingLocation)
-                        .padding(.horizontal)
-                        .padding(.top, 10)
                     }
                 }
                 .padding(.horizontal)
-                
-                // Stats
-                HStack(spacing: 40) {
-                    VStack {
-                        Text("Posts")
-                            .font(.headline)
-                            .foregroundColor(isDarkMode ? .white : .primary)
-                        Text("0")
-                            .font(.title)
-                            .foregroundColor(.green)
-                    }
-                    
-                    VStack {
-                        Text("Likes")
-                            .font(.headline)
-                            .foregroundColor(isDarkMode ? .white : .primary)
-                        Text("0")
-                            .font(.title)
-                            .foregroundColor(.green)
-                    }
-                }
-                .padding(.vertical)
             }
         }
     }
@@ -236,6 +248,18 @@ struct ProfileView: View {
             errorMessage = error.localizedDescription
             showError = true
         }
+    }
+    
+    private func deleteAccount() async {
+        isDeleting = true
+        do {
+            try await userManager.deleteAccount()
+            presentationMode.wrappedValue.dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+        isDeleting = false
     }
 }
 
