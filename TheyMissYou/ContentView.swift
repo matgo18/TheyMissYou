@@ -35,6 +35,7 @@ struct ContentView: View {
     @State private var showingGroupsView = false
     @State private var backgroundOpacity: Double = 0
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @AppStorage("notificationFrequency") private var notificationFrequency = NotificationFrequency.immediate.rawValue
     @Environment(\.scenePhase) private var scenePhase
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
@@ -42,6 +43,24 @@ struct ContentView: View {
     // Initialize notifications when the view appears
     func initializeNotifications() {
         NotificationManager.shared.requestPermission()
+        
+        // Listen for notification taps
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ShowPostPhotoView"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            showingPostPhotoView = true
+        }
+    }
+    
+    // Function to send a reminder notification
+    func sendReminderNotification() {
+        NotificationManager.shared.scheduleNotification(
+            title: "We Miss You!",
+            body: "Come back and check what's new in the app!",
+            timeInterval: notificationFrequency
+        )
     }
     
     var body: some View {
@@ -306,6 +325,11 @@ struct ContentView: View {
         }
         .onAppear {
             initializeNotifications()
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .background {
+                sendReminderNotification()
+            }
         }
     }
 }
