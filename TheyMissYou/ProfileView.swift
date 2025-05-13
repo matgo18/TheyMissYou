@@ -12,8 +12,6 @@ struct ProfileView: View {
     @State private var showError = false
     @State private var coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
     @State private var isUpdatingLocation = false
-    @State private var showDeleteConfirmation = false
-    @State private var isDeleting = false
     
     private let darkModeColor = Color(red: 28/255, green: 28/255, blue: 30/255)
     
@@ -59,24 +57,6 @@ struct ProfileView: View {
                 }
                 
                 Spacer()
-                
-                // Delete Account Button
-                Button(action: {
-                    showDeleteConfirmation = true
-                }) {
-                    HStack {
-                        Image(systemName: "trash")
-                            .foregroundColor(.red)
-                        Text("Delete Account")
-                            .foregroundColor(.red)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.red.opacity(0.1))
-                    .cornerRadius(10)
-                }
-                .padding(.horizontal)
-                .padding(.bottom)
             }
             .navigationBarHidden(true)
             .background(isDarkMode ? darkModeColor : Color.white)
@@ -93,16 +73,6 @@ struct ProfileView: View {
             } message: {
                 Text("Are you sure you want to sign out?")
             }
-            .alert("Delete Account", isPresented: $showDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
-                    Task {
-                        await deleteAccount()
-                    }
-                }
-            } message: {
-                Text("Are you sure you want to delete your account? This action cannot be undone.")
-            }
             .fullScreenCover(isPresented: $showingAuthView) {
                 AuthView()
             }
@@ -115,16 +85,6 @@ struct ProfileView: View {
                             }
                         }
                     }
-            }
-            .overlay {
-                if isDeleting {
-                    Color.black.opacity(0.5)
-                    ProgressView("Deleting account...")
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(10)
-                }
             }
         }
     }
@@ -248,18 +208,6 @@ struct ProfileView: View {
             errorMessage = error.localizedDescription
             showError = true
         }
-    }
-    
-    private func deleteAccount() async {
-        isDeleting = true
-        do {
-            try await userManager.deleteAccount()
-            presentationMode.wrappedValue.dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
-        }
-        isDeleting = false
     }
 }
 
