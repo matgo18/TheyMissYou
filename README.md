@@ -1,54 +1,65 @@
-
 # TheyMissYou
 
-**TheyMissYou** is an iOS application built with SwiftUI. It focuses on user interaction through notifications and a clean, intuitive interface. The project includes multiple views (profile, messages, settings), local notification handling, and unit/UI testing.
+**TheyMissYou** is an iOS application built with SwiftUI. It enables users to share location-based posts collaboratively within groups. The app focuses on simplicity, geolocation, and social interaction.
 
-## Features
+## Main Features
 
-- SwiftUI-based user interface with several views:
-  - `ContentView`: Main screen
-  - `MessageView`: Displays user messages or notifications
-  - `ProfileView`: User profile management
-  - `SettingsView`: App settings
-- Local notification handling via `NotificationManager.swift`
-- Asset management (icons, images)
-- Unit and UI tests (`TheyMissYouTests`, `TheyMissYouUITests`)
+* **Authentication**
+
+  * Login and signup interface (`AuthView.swift`)
+
+* **Groups**
+
+  * Create and manage user groups (`GroupsView`, `GroupManager`)
+
+* **Interactive Map**
+
+  * Select locations through a map interface (`MapPickerView`, `LocationsView`)
+
+* **Photo Posts**
+
+  * Create posts that include images and specific locations (`PostPhotoView`, `PostView`, `PostManager`, `ImageManager`)
+
+* **Notifications**
+
+  * Local notifications to keep users engaged (`NotificationManager`)
+
+* **User Profile**
+
+  * Manage user information and preferences (`ProfileView`, `UserManager`)
+
+* **App Settings**
+
+  * Customize app behavior (`SettingsView`)
 
 ## Installation
 
 ### Prerequisites
 
-- macOS with [Xcode](https://developer.apple.com/xcode/) installed
-- Swift 5.0 or later
+* macOS with [Xcode](https://developer.apple.com/xcode/) installed
+* Swift 5.0 or later
+* A Firebase account if using Firebase integration (`GoogleService-Info.plist` required)
 
 ### Steps
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/your-username/TheyMissYou.git
    cd TheyMissYou
    ```
+
 2. Open the project in Xcode:
+
    ```bash
    open TheyMissYou.xcodeproj
    ```
-3. Build and run the app on a simulator or physical iOS device
 
-## Screenshots
+3. If needed, add your own `GoogleService-Info.plist` file in the `TheyMissYou/` directory
 
-App screenshots are available in the `Logos` directory.
+4. Build and run the app on a simulator or physical device
 
-## Testing
-
-To run tests, press ⌘U in Xcode. This will execute:
-
-- Unit tests (`TheyMissYouTests`)
-- UI tests (`TheyMissYouUITests`)
-
-## Author
-
-- Original project by [Your Name or Organization]
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is open-source. See the `LICENSE` file for more details (if available).
